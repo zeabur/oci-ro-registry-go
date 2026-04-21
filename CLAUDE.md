@@ -63,9 +63,9 @@ go run .
 docker build -t zeabur/oci-ro-registry:2 .
 
 # Build multi-platform image with docker-bake.hcl (linux/amd64 + linux/arm64)
-docker buildx bake                         # uses VERSION=2.0.1 default
-docker buildx bake --set "*.VERSION=2.0.1" # explicit version
-VERSION=2.0.1 docker buildx bake --push    # build and push all tags
+docker buildx bake                         # uses VERSION=2.0.2 default
+docker buildx bake --set "*.VERSION=2.0.2" # explicit version
+VERSION=2.0.2 docker buildx bake --push    # build and push all tags
 ```
 
 ## Adding a new endpoint
