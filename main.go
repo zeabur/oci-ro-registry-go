@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/zeabur/oci-ro-registry-go/internal/config"
 	"github.com/zeabur/oci-ro-registry-go/internal/registry"
@@ -9,13 +10,19 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	cfg := config.Load()
 
 	s3, err := storage.NewMinioStorage(cfg.S3Endpoint, cfg.S3AccessKeyID, cfg.S3SecretKey, cfg.S3Region, cfg.S3UseSSL)
 	if err != nil {
-		log.Fatalf("failed to create storage client: %v", err)
+		slog.Error("failed to create storage client", "error", err)
+		os.Exit(1)
 	}
 
 	app := registry.SetupRoutes(s3, cfg.BucketName)
-	log.Fatal(app.Listen(":" + cfg.Port))
+	if err := app.Listen(":" + cfg.Port); err != nil {
+		slog.Error("server error", "error", err)
+		os.Exit(1)
+	}
 }
