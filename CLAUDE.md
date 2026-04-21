@@ -59,8 +59,13 @@ go vet ./...
 # Run locally (requires MinIO env vars)
 go run .
 
-# Build Docker image
+# Build Docker image (single platform)
 docker build -t zeabur/oci-ro-registry:2 .
+
+# Build multi-platform image with docker-bake.hcl (linux/amd64 + linux/arm64)
+docker buildx bake                         # uses VERSION=2.0.0 default
+docker buildx bake --set "*.VERSION=2.0.0" # explicit version
+VERSION=2.0.0 docker buildx bake --push    # build and push all tags
 ```
 
 ## Adding a new endpoint

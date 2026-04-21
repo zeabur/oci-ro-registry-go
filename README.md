@@ -35,7 +35,25 @@ docker run -p 3000:3000 \
   -e S3_ENDPOINT=minio.example.com:9000 \
   -e S3_ACCESS_KEY_ID=minioadmin \
   -e S3_SECRET_ACCESS_KEY=minioadmin \
-  oci-ro-registry-go
+  zeabur/oci-ro-registry:2
+```
+
+## Building multi-platform images
+
+[docker-bake.hcl](./docker-bake.hcl) builds `linux/amd64` and `linux/arm64` and tags the image as `2.0.0`, `2.0`, `2`, and `latest`.
+
+```bash
+# Build locally (no push)
+VERSION=2.0.0 docker buildx bake
+
+# Build and push to Docker Hub
+VERSION=2.0.0 docker buildx bake --push
+```
+
+Override `REGISTRY` or `IMAGE` variables to target a different registry:
+
+```bash
+REGISTRY=ghcr.io IMAGE=your-org/oci-ro-registry VERSION=2.0.0 docker buildx bake --push
 ```
 
 ## S3 bucket layout
