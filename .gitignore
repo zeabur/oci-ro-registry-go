@@ -2,4 +2,4 @@
 .env
 .env.*
 !.env.example
-_push_credential.txt
+*.txt
