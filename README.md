@@ -57,20 +57,20 @@ docker build -t zeabur/stratus:2 .
 
 ### Building multi-platform images
 
-[docker-bake.hcl](./docker-bake.hcl) builds `linux/amd64` and `linux/arm64` and tags the image as `2.1.0`, `2.0`, `2`, and `latest`.
+[docker-bake.hcl](./docker-bake.hcl) builds `linux/amd64` and `linux/arm64` and tags the image as `2.1.1`, `2.0`, `2`, and `latest`.
 
 ```bash
 # Build locally (no push)
-VERSION=2.1.0 docker buildx bake
+VERSION=2.1.1 docker buildx bake
 
 # Build and push to Docker Hub
-VERSION=2.1.0 docker buildx bake --push
+VERSION=2.1.1 docker buildx bake --push
 ```
 
 Override `REGISTRY` or `IMAGE` variables to target a different registry:
 
 ```bash
-REGISTRY=ghcr.io IMAGE=your-org/stratus VERSION=2.1.0 docker buildx bake --push
+REGISTRY=ghcr.io IMAGE=your-org/stratus VERSION=2.1.1 docker buildx bake --push
 ```
 
 ### S3 bucket layout

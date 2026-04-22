@@ -1,5 +1,5 @@
 variable "VERSION" {
-  default = "2.1.0"
+  default = "2.1.1"
 }
 
 variable "REGISTRY" {
