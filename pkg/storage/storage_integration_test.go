@@ -12,8 +12,8 @@ import (
 
 	"github.com/minio/minio-go/v7"
 
-	"github.com/zeabur/stratus/internal/config"
-	"github.com/zeabur/stratus/internal/storage"
+	"github.com/zeabur/stratus/pkg/config"
+	"github.com/zeabur/stratus/pkg/storage"
 )
 
 // buildTestCase reads the environment variables matching the config,

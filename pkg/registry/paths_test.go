@@ -3,7 +3,7 @@ package registry_test
 import (
 	"testing"
 
-	"github.com/zeabur/stratus/internal/registry"
+	"github.com/zeabur/stratus/pkg/registry"
 )
 
 func TestBlobPath(t *testing.T) {

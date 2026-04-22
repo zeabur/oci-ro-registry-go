@@ -9,7 +9,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/zeabur/stratus/internal/config"
+	"github.com/zeabur/stratus/pkg/config"
 )
 
 var ErrMissingConfig = fmt.Errorf("missing required configuration")

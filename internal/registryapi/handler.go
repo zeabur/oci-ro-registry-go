@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/zeabur/stratus/internal/registry"
-	"github.com/zeabur/stratus/internal/storage"
+	"github.com/zeabur/stratus/pkg/registry"
+	"github.com/zeabur/stratus/pkg/storage"
 )
 
 const (

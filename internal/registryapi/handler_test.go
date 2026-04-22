@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/zeabur/stratus/internal/registryapi"
-	"github.com/zeabur/stratus/internal/storage"
+	"github.com/zeabur/stratus/pkg/storage"
 )
 
 const testBucket = "test-bucket"

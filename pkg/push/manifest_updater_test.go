@@ -3,7 +3,7 @@ package push
 import (
 	"testing"
 
-	"github.com/zeabur/stratus/internal/registry"
+	"github.com/zeabur/stratus/pkg/registry"
 )
 
 func TestMergeIndex(t *testing.T) {
