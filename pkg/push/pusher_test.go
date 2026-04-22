@@ -10,7 +10,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/zeabur/stratus/pkg/registry"
+	"github.com/zeabur/stratus/v2/pkg/registry"
 )
 
 func TestPushOciLayoutUploadsToProvidedStorage(t *testing.T) {

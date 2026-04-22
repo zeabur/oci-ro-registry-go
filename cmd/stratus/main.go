@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/zeabur/stratus/internal/registryapi"
-	"github.com/zeabur/stratus/pkg/config"
-	"github.com/zeabur/stratus/pkg/storage"
+	"github.com/zeabur/stratus/v2/internal/registryapi"
+	"github.com/zeabur/stratus/v2/pkg/config"
+	"github.com/zeabur/stratus/v2/pkg/storage"
 )
 
 func main() {

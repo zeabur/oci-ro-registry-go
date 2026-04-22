@@ -10,8 +10,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/zeabur/stratus/pkg/registry"
-	"github.com/zeabur/stratus/pkg/storage"
+	"github.com/zeabur/stratus/v2/pkg/registry"
+	"github.com/zeabur/stratus/v2/pkg/storage"
 )
 
 type pushOptions struct {

@@ -13,7 +13,7 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/zeabur/stratus/pkg/storage"
+	"github.com/zeabur/stratus/v2/pkg/storage"
 )
 
 func TestUploadWithRetryRetriesUntilSuccess(t *testing.T) {

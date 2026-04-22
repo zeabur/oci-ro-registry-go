@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/zeabur/stratus/pkg/registry"
-	"github.com/zeabur/stratus/pkg/storage"
+	"github.com/zeabur/stratus/v2/pkg/registry"
+	"github.com/zeabur/stratus/v2/pkg/storage"
 )
 
 // OCIManifestUpdater encapsulates manifest fetch/merge logic for OCI indexes.

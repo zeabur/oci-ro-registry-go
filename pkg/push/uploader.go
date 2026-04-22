@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/zeabur/stratus/pkg/storage"
+	"github.com/zeabur/stratus/v2/pkg/storage"
 )
 
 // UploadObject describes a reusable payload that can be uploaded multiple times (re-opened on retry).

@@ -1,4 +1,4 @@
-module github.com/zeabur/stratus
+module github.com/zeabur/stratus/v2
 
 go 1.26.1
 

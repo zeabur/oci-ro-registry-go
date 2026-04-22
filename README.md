@@ -110,7 +110,7 @@ See the [BuildKit OCI/Docker exporters documentation](https://docs.docker.com/bu
 ```go
 import (
     "os"
-    "github.com/zeabur/stratus/pkg/push"
+    "github.com/zeabur/stratus/v2/pkg/push"
 )
 
 srcFS := os.DirFS("image-layout")  // or archive/tar FS from the .tar file

@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	slogfiber "github.com/samber/slog-fiber"
-	"github.com/zeabur/stratus/pkg/storage"
+	"github.com/zeabur/stratus/v2/pkg/storage"
 )
 
 func SetupRoutes(s storage.ReadStorage, bucketName string) *fiber.App {
