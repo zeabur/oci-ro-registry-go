@@ -77,6 +77,15 @@ func (s *MinioStorage) PresignGetObject(ctx context.Context, bucket, key string,
 	return u.String(), nil
 }
 
+func (s *MinioStorage) PutObject(ctx context.Context, bucket, key string, body io.Reader, size int64, opts PutObjectOptions) error {
+	_, err := s.client.PutObject(ctx, bucket, key, body, size, minio.PutObjectOptions{
+		ContentType:  opts.ContentType,
+		CacheControl: opts.CacheControl,
+		NumThreads:   4,
+	})
+	return err
+}
+
 func isMinioNotFound(err error) bool {
 	errResp := minio.ToErrorResponse(err)
 	return errResp.StatusCode == 404 || errResp.Code == "NoSuchKey" || errResp.Code == "NotFound"

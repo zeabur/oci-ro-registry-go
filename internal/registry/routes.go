@@ -5,10 +5,10 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	slogfiber "github.com/samber/slog-fiber"
-	"github.com/zeabur/oci-ro-registry-go/internal/storage"
+	"github.com/zeabur/stratus/internal/storage"
 )
 
-func SetupRoutes(s storage.Storage, bucketName string) *fiber.App {
+func SetupRoutes(s storage.ReadStorage, bucketName string) *fiber.App {
 	app := fiber.New()
 	app.Use(slogfiber.New(slog.Default()))
 

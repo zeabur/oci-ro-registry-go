@@ -14,8 +14,22 @@ type ObjectInfo struct {
 	ETag          string
 }
 
-type Storage interface {
+type PutObjectOptions struct {
+	ContentType  string
+	CacheControl string
+}
+
+type ReadStorage interface {
 	StatObject(ctx context.Context, bucket, key string) (*ObjectInfo, error)
 	GetObject(ctx context.Context, bucket, key string) (io.ReadCloser, *ObjectInfo, error)
 	PresignGetObject(ctx context.Context, bucket, key string, expiry time.Duration) (string, error)
+}
+
+type WriteStorage interface {
+	PutObject(ctx context.Context, bucket, key string, body io.Reader, size int64, opts PutObjectOptions) error
+}
+
+type Storage interface {
+	ReadStorage
+	WriteStorage
 }

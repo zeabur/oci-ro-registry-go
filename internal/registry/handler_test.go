@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zeabur/oci-ro-registry-go/internal/registry"
-	"github.com/zeabur/oci-ro-registry-go/internal/storage"
+	"github.com/zeabur/stratus/internal/registry"
+	"github.com/zeabur/stratus/internal/storage"
 )
 
 const testBucket = "test-bucket"
@@ -72,7 +72,7 @@ func (f *fakeStorage) PresignGetObject(_ context.Context, bucket, key string, _ 
 
 // helpers
 
-func doRequest(t *testing.T, s storage.Storage, method, path string, headers map[string]string) *http.Response {
+func doRequest(t *testing.T, s storage.ReadStorage, method, path string, headers map[string]string) *http.Response {
 	t.Helper()
 	req := httptest.NewRequest(method, path, nil)
 	for k, v := range headers {

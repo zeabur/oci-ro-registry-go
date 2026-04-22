@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/zeabur/oci-ro-registry-go/internal/storage"
+	"github.com/zeabur/stratus/internal/storage"
 )
 
 const (
@@ -18,11 +18,11 @@ const (
 )
 
 type Handler struct {
-	storage    storage.Storage
+	storage    storage.ReadStorage
 	bucketName string
 }
 
-func NewHandler(s storage.Storage, bucketName string) *Handler {
+func NewHandler(s storage.ReadStorage, bucketName string) *Handler {
 	return &Handler{storage: s, bucketName: bucketName}
 }
 

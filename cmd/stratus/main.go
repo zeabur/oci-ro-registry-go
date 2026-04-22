@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/zeabur/oci-ro-registry-go/internal/config"
-	"github.com/zeabur/oci-ro-registry-go/internal/registry"
-	"github.com/zeabur/oci-ro-registry-go/internal/storage"
+	"github.com/zeabur/stratus/internal/config"
+	"github.com/zeabur/stratus/internal/registry"
+	"github.com/zeabur/stratus/internal/storage"
 )
 
 func main() {
