@@ -11,7 +11,8 @@ import (
 )
 
 type MinioStorage struct {
-	client *minio.Client
+	client                     *minio.Client
+	multipartUploadConcurrency uint
 }
 
 func NewMinioStorage(endpoint, accessKeyID, secretKey, region string, useSSL, pathStyle bool) (*MinioStorage, error) {
@@ -28,7 +29,7 @@ func NewMinioStorage(endpoint, accessKeyID, secretKey, region string, useSSL, pa
 	if err != nil {
 		return nil, err
 	}
-	return &MinioStorage{client: client}, nil
+	return &MinioStorage{client: client, multipartUploadConcurrency: 4}, nil
 }
 
 func (s *MinioStorage) StatObject(ctx context.Context, bucket, key string) (*ObjectInfo, error) {
@@ -81,7 +82,7 @@ func (s *MinioStorage) PutObject(ctx context.Context, bucket, key string, body i
 	_, err := s.client.PutObject(ctx, bucket, key, body, size, minio.PutObjectOptions{
 		ContentType:  opts.ContentType,
 		CacheControl: opts.CacheControl,
-		NumThreads:   4,
+		NumThreads:   uint(s.multipartUploadConcurrency),
 	})
 	return err
 }

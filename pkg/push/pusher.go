@@ -14,10 +14,9 @@ import (
 	"github.com/zeabur/stratus/internal/storage"
 )
 
-const blobUploadConcurrency = 4
-
 type pushOptions struct {
-	logOutput io.Writer
+	logOutput             io.Writer
+	blobUploadConcurrency int
 }
 
 type PushOptionsFn func(opts *pushOptions)
@@ -28,10 +27,19 @@ func WithLogOutput(output io.Writer) PushOptionsFn {
 	}
 }
 
+func WithBlobUploadConcurrency(concurrency int) PushOptionsFn {
+	return func(opts *pushOptions) {
+		if concurrency > 0 {
+			opts.blobUploadConcurrency = concurrency
+		}
+	}
+}
+
 // PushOciLayout pushes an OCI layout filesystem to the provided storage backend.
 func PushOciLayout(ctx context.Context, dst storage.Storage, bucket string, src fs.FS, imageName string, tag string, options ...PushOptionsFn) error {
 	pushOpts := &pushOptions{
-		logOutput: os.Stderr,
+		logOutput:             os.Stderr,
+		blobUploadConcurrency: 4,
 	}
 	for _, opt := range options {
 		opt(pushOpts)
@@ -97,8 +105,8 @@ func PushOciLayout(ctx context.Context, dst storage.Storage, bucket string, src 
 	_, _ = fmt.Fprintf(out, "📦 Found %d local blobs to upload\n", len(blobHexDigests))
 
 	if len(blobHexDigests) > 0 {
-		_, _ = fmt.Fprintf(out, "🚀 Starting concurrent blob uploads (concurrency: %d)...\n", blobUploadConcurrency)
-		err = uploadBlobsConcurrently(ctx, dst, bucket, src, imageName, blobHexDigests, blobUploadConcurrency, out)
+		_, _ = fmt.Fprintf(out, "🚀 Starting concurrent blob uploads (concurrency: %d)...\n", pushOpts.blobUploadConcurrency)
+		err = uploadBlobsConcurrently(ctx, dst, bucket, src, imageName, blobHexDigests, pushOpts.blobUploadConcurrency, out)
 		if err != nil {
 			return fmt.Errorf("upload blobs: %w", err)
 		}
