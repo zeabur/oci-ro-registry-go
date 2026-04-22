@@ -1,3 +1,5 @@
+//go:build integration
+
 package storage_test
 
 import (
