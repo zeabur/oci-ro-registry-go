@@ -1,15 +1,13 @@
-//go:build integration
-
 package push
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
-	"os"
 	"path"
 	"strings"
 	"testing"
@@ -17,51 +15,27 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 
+	"github.com/zeabur/stratus/internal/config"
 	"github.com/zeabur/stratus/internal/registry"
-	internalstorage "github.com/zeabur/stratus/internal/storage"
+	"github.com/zeabur/stratus/internal/storage"
 )
 
-// buildIntegrationCase reads STORAGE_TEST_* env vars and returns a ready store + raw client.
-// Skips the test if required vars are absent.
-func buildIntegrationCase(t *testing.T) (store *internalstorage.MinioStorage, raw *minio.Client, bucket string) {
+// buildIntegrationCase reads the environment variables matching the config,
+// and returns a ready store. Skips the test if required vars are absent.
+func buildIntegrationCase(t *testing.T) (store *storage.MinioStorage, bucket string) {
 	t.Helper()
 
-	accessKey := os.Getenv("STORAGE_TEST_ACCESS_KEY_ID")
-	secretKey := os.Getenv("STORAGE_TEST_SECRET_ACCESS_KEY")
-	bucket = os.Getenv("STORAGE_TEST_BUCKET")
-	endpoint := os.Getenv("STORAGE_TEST_ENDPOINT")
-	region := os.Getenv("STORAGE_TEST_REGION")
-	pathStyle := os.Getenv("STORAGE_TEST_PATH_STYLE") == "1" || os.Getenv("STORAGE_TEST_PATH_STYLE") == "true"
-
-	if accessKey == "" || endpoint == "" {
-		t.Skip("STORAGE_TEST_ACCESS_KEY_ID / STORAGE_TEST_ENDPOINT not set")
+	cfg := config.Load()
+	store, err := storage.MinioStorageFromConfig(cfg)
+	if errors.Is(err, storage.ErrMissingConfig) {
+		t.Skip("Skipping integration test due to missing configuration")
 	}
-
-	host, useSSL := parseEndpoint(endpoint)
-
-	var err error
-	store, err = internalstorage.NewMinioStorage(host, accessKey, secretKey, region, useSSL, pathStyle)
 	if err != nil {
-		t.Fatalf("NewMinioStorage: %v", err)
+		t.Fatalf("MinioStorageFromConfig: %v", err)
 	}
 
-	lookup := minio.BucketLookupPath
-	if !pathStyle {
-		lookup = minio.BucketLookupDNS
-	}
-	raw, err = minio.New(host, &minio.Options{
-		Creds:        credentials.NewStaticV4(accessKey, secretKey, ""),
-		Secure:       useSSL,
-		Region:       region,
-		BucketLookup: lookup,
-	})
-	if err != nil {
-		t.Fatalf("raw minio client: %v", err)
-	}
-
-	return store, raw, bucket
+	return store, cfg.BucketName
 }
 
 func withIsolatedPrefix(t *testing.T, rawClient *minio.Client, bucket string) string {
@@ -98,7 +72,8 @@ func withIsolatedPrefix(t *testing.T, rawClient *minio.Client, bucket string) st
 // ---- tests ----
 
 func TestIntegration_PushOciLayout(t *testing.T) {
-	store, raw, bucket := buildIntegrationCase(t)
+	store, bucket := buildIntegrationCase(t)
+	raw := store.GetClient()
 
 	ctx := context.Background()
 	prefix := withIsolatedPrefix(t, raw, bucket)

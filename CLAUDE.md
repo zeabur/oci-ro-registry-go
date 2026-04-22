@@ -91,11 +91,14 @@ No real S3/MinIO connection is required to run tests.
 Integration tests require real S3 credentials and are gated behind the `integration` build tag.
 
 ```bash
-STORAGE_TEST_ACCESS_KEY_ID=ACCESS_KEY_ID \
-STORAGE_TEST_SECRET_ACCESS_KEY=SECRET_ACCESS_KEY \
-STORAGE_TEST_BUCKET=BUCKET \
-STORAGE_TEST_REGION=REGION \
-STORAGE_TEST_ENDPOINT=https://ENDPOINT \
-STORAGE_TEST_PATH_STYLE=0 \
+S3_ACCESS_KEY_ID=ACCESS_KEY_ID \
+S3_SECRET_ACCESS_KEY=SECRET_ACCESS_KEY \
+S3_BUCKET_NAME=BUCKET \
+S3_REGION=REGION \
+S3_ENDPOINT=ENDPOINT \
+S3_USE_SSL=true \
+S3_PATH_STYLE=false \
 go test -tags=integration -v ./... -run Integration
 ```
+
+Note that ENDPOINT should not include a protocol. Specify with `S3_USE_SSL` instead.

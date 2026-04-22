@@ -2,34 +2,89 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/url"
 	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/zeabur/stratus/internal/config"
 )
+
+var ErrMissingConfig = fmt.Errorf("missing required configuration")
 
 type MinioStorage struct {
 	client                     *minio.Client
 	multipartUploadConcurrency uint
 }
 
-func NewMinioStorage(endpoint, accessKeyID, secretKey, region string, useSSL, pathStyle bool) (*MinioStorage, error) {
+type minioStorageFactoryConfig struct {
+	useSSL                     bool
+	pathStyle                  bool
+	multipartUploadConcurrency uint
+}
+
+type MinioStorageOption func(*minioStorageFactoryConfig)
+
+func WithMinioMultipartUploadConcurrency(n uint) MinioStorageOption {
+	return func(cfg *minioStorageFactoryConfig) {
+		cfg.multipartUploadConcurrency = n
+	}
+}
+
+func WithMinioPathStyle(pathStyle bool) MinioStorageOption {
+	return func(cfg *minioStorageFactoryConfig) {
+		cfg.pathStyle = pathStyle
+	}
+}
+
+func WithMinioUseSSL(useSSL bool) MinioStorageOption {
+	return func(cfg *minioStorageFactoryConfig) {
+		cfg.useSSL = useSSL
+	}
+}
+
+func NewMinioStorage(endpoint, accessKeyID, secretKey, region string, options ...MinioStorageOption) (*MinioStorage, error) {
+	cfg := &minioStorageFactoryConfig{
+		useSSL:                     true,
+		pathStyle:                  false,
+		multipartUploadConcurrency: 4,
+	}
+	for _, opt := range options {
+		opt(cfg)
+	}
+
 	lookup := minio.BucketLookupDNS
-	if pathStyle {
+	if cfg.pathStyle {
 		lookup = minio.BucketLookupPath
 	}
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:        credentials.NewStaticV4(accessKeyID, secretKey, ""),
-		Secure:       useSSL,
+		Secure:       cfg.useSSL,
 		Region:       region,
 		BucketLookup: lookup,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &MinioStorage{client: client, multipartUploadConcurrency: 4}, nil
+	return &MinioStorage{client: client, multipartUploadConcurrency: cfg.multipartUploadConcurrency}, nil
+}
+
+func MinioStorageFromConfig(cfg config.Config) (*MinioStorage, error) {
+	if cfg.S3AccessKeyID == "" || cfg.S3Endpoint == "" || cfg.S3SecretKey == "" {
+		return nil, ErrMissingConfig
+	}
+
+	return NewMinioStorage(
+		cfg.S3Endpoint,
+		cfg.S3AccessKeyID,
+		cfg.S3SecretKey,
+		cfg.S3Region,
+		WithMinioUseSSL(cfg.S3UseSSL),
+		WithMinioPathStyle(cfg.S3PathStyle),
+		WithMinioMultipartUploadConcurrency(cfg.S3MultipartUploadConcurrency),
+	)
 }
 
 func (s *MinioStorage) StatObject(ctx context.Context, bucket, key string) (*ObjectInfo, error) {
@@ -85,6 +140,12 @@ func (s *MinioStorage) PutObject(ctx context.Context, bucket, key string, body i
 		NumThreads:   uint(s.multipartUploadConcurrency),
 	})
 	return err
+}
+
+// GetClient exposes the underlying Minio client for advanced operations not covered by the Storage interface.
+// It is mainly for integration test and you should not use it in production code.
+func (s *MinioStorage) GetClient() *minio.Client {
+	return s.client
 }
 
 func isMinioNotFound(err error) bool {

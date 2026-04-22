@@ -1,5 +1,3 @@
-//go:build integration
-
 package storage_test
 
 import (
@@ -9,68 +7,30 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"os"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 
+	"github.com/zeabur/stratus/internal/config"
 	"github.com/zeabur/stratus/internal/storage"
 )
 
-// buildTestCase reads STORAGE_TEST_* env vars and returns a ready store + raw client.
-// Skips the test if required vars are absent.
-func buildTestCase(t *testing.T) (store *storage.MinioStorage, raw *minio.Client, bucket string) {
+// buildTestCase reads the environment variables matching the config,
+// and returns a ready store. Skips the test if required vars are absent.
+func buildTestCase(t *testing.T) (store *storage.MinioStorage, bucket string) {
 	t.Helper()
 
-	accessKey := os.Getenv("STORAGE_TEST_ACCESS_KEY_ID")
-	secretKey := os.Getenv("STORAGE_TEST_SECRET_ACCESS_KEY")
-	bucket = os.Getenv("STORAGE_TEST_BUCKET")
-	endpoint := os.Getenv("STORAGE_TEST_ENDPOINT")
-	region := os.Getenv("STORAGE_TEST_REGION")
-
-	if accessKey == "" || endpoint == "" {
-		t.Skip("STORAGE_TEST_ACCESS_KEY_ID / STORAGE_TEST_ENDPOINT not set")
+	cfg := config.Load()
+	store, err := storage.MinioStorageFromConfig(cfg)
+	if errors.Is(err, storage.ErrMissingConfig) {
+		t.Skip("Skipping integration test due to missing configuration")
 	}
-
-	host, useSSL := stripScheme(endpoint)
-	pathStyleEnv := os.Getenv("STORAGE_TEST_PATH_STYLE")
-	pathStyle := pathStyleEnv == "true" || pathStyleEnv == "1"
-
-	var err error
-	store, err = storage.NewMinioStorage(host, accessKey, secretKey, region, useSSL, pathStyle)
 	if err != nil {
-		t.Fatalf("NewMinioStorage: %v", err)
+		t.Fatalf("MinioStorageFromConfig: %v", err)
 	}
 
-	lookup := minio.BucketLookupPath
-	if !pathStyle {
-		lookup = minio.BucketLookupDNS
-	}
-	raw, err = minio.New(host, &minio.Options{
-		Creds:        credentials.NewStaticV4(accessKey, secretKey, ""),
-		Secure:       useSSL,
-		Region:       region,
-		BucketLookup: lookup,
-	})
-	if err != nil {
-		t.Fatalf("raw minio client: %v", err)
-	}
-
-	return store, raw, bucket
-}
-
-// stripScheme removes the URL scheme and returns (host, useSSL).
-func stripScheme(rawURL string) (host string, useSSL bool) {
-	if after, ok := strings.CutPrefix(rawURL, "https://"); ok {
-		return after, true
-	}
-	if after, ok := strings.CutPrefix(rawURL, "http://"); ok {
-		return after, false
-	}
-	return rawURL, true
+	return store, cfg.BucketName
 }
 
 func withIsolatedPrefix(t *testing.T, raw *minio.Client, bucket string) string {
@@ -107,7 +67,8 @@ func withIsolatedPrefix(t *testing.T, raw *minio.Client, bucket string) string {
 // ---- tests ----
 
 func TestIntegration_Storage_RoundTrip(t *testing.T) {
-	store, raw, bucket := buildTestCase(t)
+	store, bucket := buildTestCase(t)
+	raw := store.GetClient()
 
 	ctx := context.Background()
 	prefix := withIsolatedPrefix(t, raw, bucket)
@@ -160,7 +121,8 @@ func TestIntegration_Storage_RoundTrip(t *testing.T) {
 }
 
 func TestIntegration_Storage_NotFound(t *testing.T) {
-	store, raw, bucket := buildTestCase(t)
+	store, bucket := buildTestCase(t)
+	raw := store.GetClient()
 
 	ctx := context.Background()
 	prefix := withIsolatedPrefix(t, raw, bucket)
@@ -182,7 +144,8 @@ func TestIntegration_Storage_NotFound(t *testing.T) {
 }
 
 func TestIntegration_Storage_LargeMultipart(t *testing.T) {
-	store, raw, bucket := buildTestCase(t)
+	store, bucket := buildTestCase(t)
+	raw := store.GetClient()
 
 	ctx := context.Background()
 	prefix := withIsolatedPrefix(t, raw, bucket)
@@ -227,7 +190,8 @@ func TestIntegration_Storage_LargeMultipart(t *testing.T) {
 }
 
 func TestIntegration_Storage_Metadata(t *testing.T) {
-	store, raw, bucket := buildTestCase(t)
+	store, bucket := buildTestCase(t)
+	raw := store.GetClient()
 
 	ctx := context.Background()
 	prefix := withIsolatedPrefix(t, raw, bucket)
