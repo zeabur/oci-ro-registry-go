@@ -69,9 +69,9 @@ go run .
 docker build -t zeabur/stratus:2 .
 
 # Build multi-platform image with docker-bake.hcl (linux/amd64 + linux/arm64)
-docker buildx bake                         # uses VERSION=2.1.1 default
-docker buildx bake --set "*.VERSION=2.1.1" # explicit version
-VERSION=2.1.1 docker buildx bake --push    # build and push all tags
+docker buildx bake                         # uses VERSION=2.1.2 default
+docker buildx bake --set "*.VERSION=2.1.2" # explicit version
+VERSION=2.1.2 docker buildx bake --push    # build and push all tags
 ```
 
 ## Adding a new endpoint
