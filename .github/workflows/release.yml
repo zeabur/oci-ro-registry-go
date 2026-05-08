@@ -6,6 +6,11 @@ on:
       - "v*"
   pull_request:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to release (e.g. v1.2.3 or v1.2.3-dev.1)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -16,7 +21,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-amd64:
+  build:
     name: Build (linux/amd64)
     runs-on: blacksmith-2vcpu-ubuntu-2404
 
@@ -25,78 +30,140 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: useblacksmith/setup-docker-builder@722e97d12b1d06a961800dd6c05d79d951ad3c80 # v1.8.0
 
-      - name: Login to Docker Hub
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Extract version
-        id: meta
-        run: |
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=0.0.0" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Build and push
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+      - name: Build
+        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
         with:
           platforms: linux/amd64
-          push: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-          tags: docker.io/zeabur/stratus:${{ steps.meta.outputs.version }}-linux-amd64
-          cache-from: type=gha,scope=buildkit-linux-amd64
-          cache-to: type=gha,mode=max,scope=buildkit-linux-amd64
+          push: false
 
-  build-arm64:
-    name: Build (linux/arm64)
-    runs-on: blacksmith-2vcpu-ubuntu-2404-arm
+  prepare:
+    name: Prepare release metadata
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch'
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      dockerhub-tags: ${{ steps.dockerhub.outputs.tags }}
+      swr-tags: ${{ steps.swr.outputs.tags }}
+
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract version
+        id: version
+        run: |
+          TAG="${{ steps.tag.outputs.value }}"
+          echo "value=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Docker Hub metadata
+        id: dockerhub
+        uses: docker/metadata-action@v5 # TODO: pin to commit hash
+        with:
+          images: docker.io/zeabur/stratus
+          flavor: latest=auto
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.tag.outputs.value }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.tag.outputs.value }}
+            type=semver,pattern={{major}},value=${{ steps.tag.outputs.value }}
+
+      - name: SWR metadata
+        id: swr
+        uses: docker/metadata-action@v5 # TODO: pin to commit hash
+        with:
+          images: swr.cn-east-3.myhuaweicloud.com/zeabur/stratus
+          flavor: latest=auto
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.tag.outputs.value }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.tag.outputs.value }}
+            type=semver,pattern={{major}},value=${{ steps.tag.outputs.value }}
+
+  build-release-dockerhub:
+    name: Build (dockerhub, linux/${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [build, prepare]
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: blacksmith-2vcpu-ubuntu-2404
+          - arch: arm64
+            platform: linux/arm64
+            runner: blacksmith-2vcpu-ubuntu-2404-arm
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: useblacksmith/setup-docker-builder@722e97d12b1d06a961800dd6c05d79d951ad3c80 # v1.8.0
 
       - name: Login to Docker Hub
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract version
-        id: meta
-        run: |
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=0.0.0" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Build and push
+        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
+        with:
+          platforms: ${{ matrix.platform }}
+          provenance: "true"
+          push: true
+          tags: docker.io/zeabur/stratus:${{ needs.prepare.outputs.version }}-linux-${{ matrix.arch }}
+
+  build-release-swr:
+    name: Build (swr, linux/${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [build, prepare]
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: blacksmith-2vcpu-ubuntu-2404
+          - arch: arm64
+            platform: linux/arm64
+            runner: blacksmith-2vcpu-ubuntu-2404-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: useblacksmith/setup-docker-builder@722e97d12b1d06a961800dd6c05d79d951ad3c80 # v1.8.0
+
+      - name: Login to Huawei SWR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: swr.cn-east-3.myhuaweicloud.com
+          username: ${{ secrets.HUAWEI_SWR_USERNAME }}
+          password: ${{ secrets.HUAWEI_SWR_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
         with:
-          platforms: linux/arm64
-          push: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-          tags: docker.io/zeabur/stratus:${{ steps.meta.outputs.version }}-linux-arm64
-          cache-from: type=gha,scope=buildkit-linux-arm64
-          cache-to: type=gha,mode=max,scope=buildkit-linux-arm64
+          platforms: ${{ matrix.platform }}
+          provenance: "false"
+          push: true
+          tags: swr.cn-east-3.myhuaweicloud.com/zeabur/stratus:${{ needs.prepare.outputs.version }}-linux-${{ matrix.arch }}
 
   push-dockerhub:
     name: Push to Docker Hub
     runs-on: blacksmith-2vcpu-ubuntu-2404-arm
-    needs: [build-amd64, build-arm64]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: [prepare, build-release-dockerhub]
 
     steps:
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: useblacksmith/setup-docker-builder@722e97d12b1d06a961800dd6c05d79d951ad3c80 # v1.8.0
 
       - name: Login to Docker Hub
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
@@ -106,30 +173,22 @@ jobs:
 
       - name: Create multi-arch manifest
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          docker buildx imagetools create \
-            -t docker.io/zeabur/stratus:${VERSION} \
-            -t docker.io/zeabur/stratus:${VERSION%.*} \
-            -t docker.io/zeabur/stratus:${VERSION%%.*} \
-            -t docker.io/zeabur/stratus:latest \
+          VERSION="${{ needs.prepare.outputs.version }}"
+          readarray -t TAGS < <(echo "${{ needs.prepare.outputs.dockerhub-tags }}")
+          TAG_ARGS=()
+          for t in "${TAGS[@]}"; do TAG_ARGS+=(-t "$t"); done
+          docker buildx imagetools create "${TAG_ARGS[@]}" \
             docker.io/zeabur/stratus:${VERSION}-linux-amd64 \
             docker.io/zeabur/stratus:${VERSION}-linux-arm64
 
   push-swr:
     name: Push to Huawei SWR
     runs-on: blacksmith-2vcpu-ubuntu-2404-arm
-    needs: [build-amd64, build-arm64]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: [prepare, build-release-swr]
 
     steps:
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        uses: useblacksmith/setup-docker-builder@722e97d12b1d06a961800dd6c05d79d951ad3c80 # v1.8.0
 
       - name: Login to Huawei SWR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
@@ -138,14 +197,12 @@ jobs:
           username: ${{ secrets.HUAWEI_SWR_USERNAME }}
           password: ${{ secrets.HUAWEI_SWR_TOKEN }}
 
-      - name: Retag to SWR
+      - name: Create multi-arch manifest
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          REGISTRY=swr.cn-east-3.myhuaweicloud.com
-          docker buildx imagetools create \
-            -t ${REGISTRY}/zeabur/stratus:${VERSION} \
-            -t ${REGISTRY}/zeabur/stratus:${VERSION%.*} \
-            -t ${REGISTRY}/zeabur/stratus:${VERSION%%.*} \
-            -t ${REGISTRY}/zeabur/stratus:latest \
-            docker.io/zeabur/stratus:${VERSION}-linux-amd64 \
-            docker.io/zeabur/stratus:${VERSION}-linux-arm64
+          VERSION="${{ needs.prepare.outputs.version }}"
+          readarray -t TAGS < <(echo "${{ needs.prepare.outputs.swr-tags }}")
+          TAG_ARGS=()
+          for t in "${TAGS[@]}"; do TAG_ARGS+=(-t "$t"); done
+          docker buildx imagetools create "${TAG_ARGS[@]}" \
+            swr.cn-east-3.myhuaweicloud.com/zeabur/stratus:${VERSION}-linux-amd64 \
+            swr.cn-east-3.myhuaweicloud.com/zeabur/stratus:${VERSION}-linux-arm64
