@@ -25,65 +25,77 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: useblacksmith/setup-docker-builder@722e97d12b1d06a961800dd6c05d79d951ad3c80 # v1.8.0
 
       - name: Build
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
         with:
           platforms: linux/amd64
           push: false
-          cache-from: type=gha,scope=buildkit-linux-amd64
-          cache-to: type=gha,mode=max,scope=buildkit-linux-amd64
 
-  build-release:
-    name: Build (${{ matrix.registry }}, linux/${{ matrix.arch }})
+  build-release-dockerhub:
+    name: Build (dockerhub, linux/${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: [build]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
         include:
-          - registry: dockerhub
-            arch: amd64
+          - arch: amd64
             platform: linux/amd64
             runner: blacksmith-2vcpu-ubuntu-2404
-            tag_prefix: docker.io/zeabur/stratus
-            provenance: "true"
-          - registry: dockerhub
-            arch: arm64
+          - arch: arm64
             platform: linux/arm64
             runner: blacksmith-2vcpu-ubuntu-2404-arm
-            tag_prefix: docker.io/zeabur/stratus
-            provenance: "true"
-          - registry: swr
-            arch: amd64
-            platform: linux/amd64
-            runner: blacksmith-2vcpu-ubuntu-2404
-            tag_prefix: swr.cn-east-3.myhuaweicloud.com/zeabur/stratus
-            provenance: "false"
-          - registry: swr
-            arch: arm64
-            platform: linux/arm64
-            runner: blacksmith-2vcpu-ubuntu-2404-arm
-            tag_prefix: swr.cn-east-3.myhuaweicloud.com/zeabur/stratus
-            provenance: "false"
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: useblacksmith/setup-docker-builder@722e97d12b1d06a961800dd6c05d79d951ad3c80 # v1.8.0
 
       - name: Login to Docker Hub
-        if: matrix.registry == 'dockerhub'
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Extract version
+        id: meta
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
+        with:
+          platforms: ${{ matrix.platform }}
+          provenance: "true"
+          push: true
+          tags: docker.io/zeabur/stratus:${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}
+
+  build-release-swr:
+    name: Build (swr, linux/${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [build]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: blacksmith-2vcpu-ubuntu-2404
+          - arch: arm64
+            platform: linux/arm64
+            runner: blacksmith-2vcpu-ubuntu-2404-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: useblacksmith/setup-docker-builder@722e97d12b1d06a961800dd6c05d79d951ad3c80 # v1.8.0
+
       - name: Login to Huawei SWR
-        if: matrix.registry == 'swr'
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
           registry: swr.cn-east-3.myhuaweicloud.com
@@ -95,23 +107,21 @@ jobs:
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
         with:
           platforms: ${{ matrix.platform }}
-          provenance: ${{ matrix.provenance }}
+          provenance: "false"
           push: true
-          tags: ${{ matrix.tag_prefix }}:${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}
-          cache-from: type=gha,scope=buildkit-linux-amd64,type=gha,scope=buildkit-${{ matrix.registry }}-linux-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=buildkit-${{ matrix.registry }}-linux-${{ matrix.arch }}
+          tags: swr.cn-east-3.myhuaweicloud.com/zeabur/stratus:${{ steps.meta.outputs.version }}-linux-${{ matrix.arch }}
 
   push-dockerhub:
     name: Push to Docker Hub
     runs-on: blacksmith-2vcpu-ubuntu-2404-arm
-    needs: [build-release]
+    needs: [build-release-dockerhub]
 
     steps:
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: useblacksmith/setup-docker-builder@722e97d12b1d06a961800dd6c05d79d951ad3c80 # v1.8.0
 
       - name: Login to Docker Hub
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
@@ -133,11 +143,11 @@ jobs:
   push-swr:
     name: Push to Huawei SWR
     runs-on: blacksmith-2vcpu-ubuntu-2404-arm
-    needs: [build-release]
+    needs: [build-release-swr]
 
     steps:
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: useblacksmith/setup-docker-builder@722e97d12b1d06a961800dd6c05d79d951ad3c80 # v1.8.0
 
       - name: Login to Huawei SWR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
