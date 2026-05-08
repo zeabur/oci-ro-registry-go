@@ -22,8 +22,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
 
-	stratusconfig  "github.com/zeabur/stratus/v2/pkg/config"
-	stratuspush    "github.com/zeabur/stratus/v2/pkg/push"
+	stratusconfig "github.com/zeabur/stratus/v2/pkg/config"
+	stratuspush "github.com/zeabur/stratus/v2/pkg/push"
 	stratusstorage "github.com/zeabur/stratus/v2/pkg/storage"
 )
 
