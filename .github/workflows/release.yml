@@ -65,7 +65,7 @@ jobs:
 
       - name: Docker Hub metadata
         id: dockerhub
-        uses: docker/metadata-action@v5 # TODO: pin to commit hash
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
         with:
           images: docker.io/zeabur/stratus
           flavor: latest=auto
@@ -76,7 +76,7 @@ jobs:
 
       - name: SWR metadata
         id: swr
-        uses: docker/metadata-action@v5 # TODO: pin to commit hash
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
         with:
           images: swr.cn-east-3.myhuaweicloud.com/zeabur/stratus
           flavor: latest=auto
