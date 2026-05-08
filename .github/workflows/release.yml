@@ -5,6 +5,12 @@ on:
     tags:
       - "v*"
   pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to release (e.g. v1.2.3 or v1.2.3-dev.1)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -36,7 +42,7 @@ jobs:
     name: Build (dockerhub, linux/${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: [build]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
         include:
@@ -62,7 +68,13 @@ jobs:
 
       - name: Extract version
         id: meta
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
@@ -76,7 +88,7 @@ jobs:
     name: Build (swr, linux/${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: [build]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
         include:
@@ -103,7 +115,13 @@ jobs:
 
       - name: Extract version
         id: meta
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2.2.0
@@ -130,14 +148,26 @@ jobs:
 
       - name: Create multi-arch manifest
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          docker buildx imagetools create \
-            -t docker.io/zeabur/stratus:${VERSION} \
-            -t docker.io/zeabur/stratus:${VERSION%.*} \
-            -t docker.io/zeabur/stratus:${VERSION%%.*} \
-            -t docker.io/zeabur/stratus:latest \
-            docker.io/zeabur/stratus:${VERSION}-linux-amd64 \
-            docker.io/zeabur/stratus:${VERSION}-linux-arm64
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          VERSION="${TAG#v}"
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            docker buildx imagetools create \
+              -t docker.io/zeabur/stratus:${VERSION} \
+              -t docker.io/zeabur/stratus:${VERSION%.*} \
+              -t docker.io/zeabur/stratus:${VERSION%%.*} \
+              -t docker.io/zeabur/stratus:latest \
+              docker.io/zeabur/stratus:${VERSION}-linux-amd64 \
+              docker.io/zeabur/stratus:${VERSION}-linux-arm64
+          else
+            docker buildx imagetools create \
+              -t docker.io/zeabur/stratus:${VERSION} \
+              docker.io/zeabur/stratus:${VERSION}-linux-amd64 \
+              docker.io/zeabur/stratus:${VERSION}-linux-arm64
+          fi
 
   push-swr:
     name: Push to Huawei SWR
@@ -157,12 +187,24 @@ jobs:
 
       - name: Create multi-arch manifest
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          VERSION="${TAG#v}"
           REGISTRY=swr.cn-east-3.myhuaweicloud.com
-          docker buildx imagetools create \
-            -t ${REGISTRY}/zeabur/stratus:${VERSION} \
-            -t ${REGISTRY}/zeabur/stratus:${VERSION%.*} \
-            -t ${REGISTRY}/zeabur/stratus:${VERSION%%.*} \
-            -t ${REGISTRY}/zeabur/stratus:latest \
-            ${REGISTRY}/zeabur/stratus:${VERSION}-linux-amd64 \
-            ${REGISTRY}/zeabur/stratus:${VERSION}-linux-arm64
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            docker buildx imagetools create \
+              -t ${REGISTRY}/zeabur/stratus:${VERSION} \
+              -t ${REGISTRY}/zeabur/stratus:${VERSION%.*} \
+              -t ${REGISTRY}/zeabur/stratus:${VERSION%%.*} \
+              -t ${REGISTRY}/zeabur/stratus:latest \
+              ${REGISTRY}/zeabur/stratus:${VERSION}-linux-amd64 \
+              ${REGISTRY}/zeabur/stratus:${VERSION}-linux-arm64
+          else
+            docker buildx imagetools create \
+              -t ${REGISTRY}/zeabur/stratus:${VERSION} \
+              ${REGISTRY}/zeabur/stratus:${VERSION}-linux-amd64 \
+              ${REGISTRY}/zeabur/stratus:${VERSION}-linux-arm64
+          fi
